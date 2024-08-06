@@ -1,3 +1,5 @@
+import eventlet
+eventlet.monkey_patch()
 from flask import Flask, render_template, request, redirect, session, jsonify
 from flask_socketio import SocketIO, join_room, leave_room, emit
 from pymongo import MongoClient

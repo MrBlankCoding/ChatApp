@@ -6,11 +6,14 @@ import os
 from werkzeug.utils import secure_filename
 from flask import url_for
 from bson import ObjectId
+from pymongo.mongo_client import MongoClient
+from pymongo.server_api import ServerApi
+uri = "mongodb+srv://MrBlankCoding:MrBlankCoding@chatapp.on6bu.mongodb.net/?retryWrites=true&w=majority&appName=chatApp"
 
 # Database Configuration
 class DatabaseConfig:
     def __init__(self):
-        self.client = MongoClient('mongodb://localhost:27017/')
+        self.client = MongoClient(uri, server_api=ServerApi('1'))
         self.db = self.client['chat_app']
         self.users = self.db['users']
         self.messages = self.db['messages']

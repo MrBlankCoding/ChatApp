@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Friends</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/friends.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script src="{{ url_for('static', filename='js/friends.js') }}"></script>
+</head>
+<body>
+    <div id="app">
+        <header>
+            <h1>Manage Friends</h1>
+            <a href="/chat" class="back-btn">Back to Chat</a>
+            <a href="/profile">Edit Profile</a>
+            <a href="/logout" class="logout-btn">Logout</a>
+        </header>
+        <div id="friends-container">
+            <div id="add-friend">
+                <h2>Add Friend</h2>
+                <input type="text" id="friend-username" placeholder="Friend's username">
+                <button onclick="sendFriendRequest()">Send Friend Request</button>
+            </div>
+            <div id="friend-requests">
+                <h2>Friend Requests</h2>
+                <ul id="friend-requests-list"></ul>
+            </div>
+            <div id="friends-list">
+                <h2>My Friends</h2>
+                <ul id="friends"></ul>
+            </div>
+        </div>
+    </div>
+    <script>
+        const username = "{{ username }}";
+    </script>
+</body>
+</html>

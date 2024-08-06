@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat App</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/chat.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</head>
+<body>
+    <div id="app">
+        <header>
+            <h1>Welcome, {{ username }}</h1>
+            <a href="/logout" class="logout-btn">Logout</a>
+            <a href="/friends" class="friends-btn">Manage Friends</a>
+            <a href="/profile">Edit Profile</a>
+        </header>
+        <div id="chat-container">
+            <div id="sidebar">
+                <div id="friends-list">
+                    <h2>Friends</h2>
+                    <ul id="friends"></ul>
+                </div>
+            </div>
+            <div id="create-group-chat">
+                <button id="create-group-chat-btn" title="Create Group Chat">💬</button>
+                <div id="group-chat-modal" class="modal">
+                    <div class="modal-content">
+                        <h3>Create Group Chat</h3>
+                        <select id="friend-select" multiple>
+                        </select>
+                        <input type="text" id="group-chat-name" placeholder="Group Chat Name">
+                        <button id="confirm-group-chat">Create</button>
+                        <button id="cancel-group-chat">Cancel</button>
+                    </div>
+                </div>
+            </div>
+            <div id="chat-rooms">
+                <div id="chat-tabs"></div>
+                <div id="chat-messages"></div>
+                <div id="message-input">
+                    <input type="text" id="message" placeholder="Type your message...">
+                    <button onclick="sendMessage()">Send</button>
+                    <input type="file" id="image-upload" accept="image/*" style="display: none;" onchange="uploadImage()">
+                    <button onclick="document.getElementById('image-upload').click()">Upload Image</button>
+                </div>
+                <div id="reply-to"></div>
+            </div>
+        </div>
+    </div>
+    <script>
+        const username = "{{ username }}";
+        let currentRoom = null;
+    </script>
+</body>
+</html>

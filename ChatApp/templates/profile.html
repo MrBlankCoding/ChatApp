@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Profile</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/profile.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Your Profile</h1>
+        <form action="/profile" method="post" enctype="multipart/form-data">
+            <div class="profile-photo">
+                {% if user.profile_photo %}
+                <img src="{{ url_for('static', filename='uploads/' + user.profile_photo) }}" alt="Profile Photo">
+                {% else %}
+                <img src="{{ url_for('static', filename='default_profile.png') }}" alt="Default Profile Photo">
+                {% endif %}
+            </div>
+            <div class="form-group">
+                <label for="profile_photo">Update Profile Photo</label>
+                <input type="file" id="profile_photo" name="profile_photo" accept="image/*">
+            </div>
+            <div class="form-group">
+                <label for="about_me">About Me</label>
+                <textarea id="about_me" name="about_me" placeholder="Tell us about yourself...">{{ user.about_me }}</textarea>
+            </div>
+            <button type="submit" class="button">Save Changes</button>
+        </form>
+        <a href="/chat" class="back-link">Back to Chat</a>
+    </div>
+</body>
+</html>

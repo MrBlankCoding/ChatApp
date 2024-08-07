@@ -9,29 +9,25 @@ from bson import ObjectId
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
 uri = "mongodb+srv://MrBlankCoding:MrBlankCoding@chatapp.on6bu.mongodb.net/?retryWrites=true&w=majority&appName=chatApp"
-import logging
 
-logging.basicConfig(level=logging.DEBUG)
-
-try:
-    client = MongoClient(uri, server_api=ServerApi('1'))
-    db = client.chat_app
-    # Test the connection
-    db.command('ping')
-    print("Successfully connected to MongoDB")
-    
-except Exception as e:
-    print(f"An error occurred: {e}")
-    logging.exception("Detailed error information:")
 # Database Configuration
 class DatabaseConfig:
     def __init__(self):
-        self.client = MongoClient(uri, server_api=ServerApi('1'))
-        self.db = self.client['chat_app']
-        self.users = self.db['users']
-        self.messages = self.db['messages']
-        self.friend_requests = self.db['friend_requests']
-        self.friends = self.db['friends']
+        self.client = None
+        self.db = None
+        self.users = None
+        self.messages = None
+        self.friend_requests = None
+        self.friends = None
+
+    def initialize(self):
+        if not self.client:
+            self.client = MongoClient(uri, server_api=ServerApi('1'))
+            self.db = self.client['chat_app']
+            self.users = self.db['users']
+            self.messages = self.db['messages']
+            self.friend_requests = self.db['friend_requests']
+            self.friends = self.db['friends']
 
 # App Configuration
 class AppConfig:

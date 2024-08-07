@@ -1,16 +1,14 @@
-from flask import Flask, render_template, request, redirect, session, jsonify
+from flask import Flask, render_template, request, redirect, session, jsonify, url_for
 from flask_socketio import SocketIO, join_room, leave_room, emit
 from pymongo import MongoClient
+from pymongo.server_api import ServerApi
 import secrets
 import os
 from werkzeug.utils import secure_filename
-from flask import url_for
 from bson import ObjectId
-from pymongo.mongo_client import MongoClient
-from pymongo.server_api import ServerApi
+
 uri = "mongodb+srv://MrBlankCoding:MrBlankCoding@chatapp.on6bu.mongodb.net/?retryWrites=true&w=majority&appName=chatApp"
 
-# Database Configuration
 class DatabaseConfig:
     def __init__(self):
         self.client = None
@@ -29,7 +27,6 @@ class DatabaseConfig:
             self.friend_requests = self.db['friend_requests']
             self.friends = self.db['friends']
 
-# App Configuration
 class AppConfig:
     def __init__(self):
         self.app = Flask(__name__)
@@ -38,7 +35,6 @@ class AppConfig:
         self.app.config['UPLOAD_FOLDER'] = 'static/uploads'
         self.app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 
-# User Management
 class UserManager:
     def __init__(self, db_config):
         self.db_config = db_config
@@ -66,6 +62,7 @@ class UserManager:
         return []
     
     def update_profile(self, username, about_me=None, profile_photo=None):
+        self._ensure_initialized()
         update_data = {}
         if about_me is not None:
             update_data['about_me'] = about_me
@@ -73,10 +70,11 @@ class UserManager:
             update_data['profile_photo'] = profile_photo
         
         if update_data:
-            self.users.update_one({'username': username}, {'$set': update_data})
+            self.db_config.users.update_one({'username': username}, {'$set': update_data})
 
     def get_user_profile(self, username):
-        user = self.users.find_one({'username': username})
+        self._ensure_initialized()
+        user = self.db_config.users.find_one({'username': username})
         if user:
             return {
                 'username': user['username'],
@@ -85,14 +83,16 @@ class UserManager:
             }
         return None
 
-# Friend Request Management
 class FriendRequestManager:
-    def __init__(self, db):
-        self.friend_requests = db.friend_requests
-        self.friends = db.friends
+    def __init__(self, db_config):
+        self.db_config = db_config
+
+    def _ensure_initialized(self):
+        self.db_config.initialize()
 
     def send_request(self, sender, recipient):
-        existing_request = self.friend_requests.find_one({
+        self._ensure_initialized()
+        existing_request = self.db_config.friend_requests.find_one({
             'sender': sender,
             'recipient': recipient,
             'status': 'pending'
@@ -101,7 +101,7 @@ class FriendRequestManager:
         if existing_request:
             return False
         
-        self.friend_requests.insert_one({
+        self.db_config.friend_requests.insert_one({
             'sender': sender,
             'recipient': recipient,
             'status': 'pending'
@@ -109,44 +109,49 @@ class FriendRequestManager:
         return True
 
     def accept_request(self, sender, recipient):
-        self.friend_requests.update_one(
+        self._ensure_initialized()
+        self.db_config.friend_requests.update_one(
             {'sender': sender, 'recipient': recipient, 'status': 'pending'},
             {'$set': {'status': 'accepted'}}
         )
         
-        self.friends.update_one(
+        self.db_config.friends.update_one(
             {'username': recipient},
             {'$addToSet': {'friends': sender}},
             upsert=True
         )
         
-        self.friends.update_one(
+        self.db_config.friends.update_one(
             {'username': sender},
             {'$addToSet': {'friends': recipient}},
             upsert=True
         )
 
     def get_pending_requests(self, username):
-        pending_requests = self.friend_requests.find({
+        self._ensure_initialized()
+        pending_requests = self.db_config.friend_requests.find({
             'recipient': username,
             'status': 'pending'
         })
         return [request['sender'] for request in pending_requests]
     
     def decline_request(self, sender, recipient):
-        self.friend_requests.delete_one({
+        self._ensure_initialized()
+        self.db_config.friend_requests.delete_one({
             'sender': sender,
             'recipient': recipient,
             'status': 'pending'
         })
 
-from bson import ObjectId
-
 class MessageManager:
-    def __init__(self, db):
-        self.messages = db.messages
+    def __init__(self, db_config):
+        self.db_config = db_config
+
+    def _ensure_initialized(self):
+        self.db_config.initialize()
 
     def save_message(self, sender, recipient, message, room, reply_to=None, image_filename=None):
+        self._ensure_initialized()
         message_id = str(ObjectId())
         message_data = {
             '_id': message_id,
@@ -157,13 +162,14 @@ class MessageManager:
             'reply_to': reply_to,
             'image_filename': image_filename,
             'deleted': False,
-            'reactions': {}  # Initialize reactions as an empty dictionary
+            'reactions': {}
         }
-        self.messages.insert_one(message_data)
+        self.db_config.messages.insert_one(message_data)
         return message_id
 
     def get_chat_history(self, room):
-        chat_history = self.messages.find({'room': room}).sort('_id', 1)
+        self._ensure_initialized()
+        chat_history = self.db_config.messages.find({'room': room}).sort('_id', 1)
         return [{
             'id': str(msg['_id']),
             'sender': msg['sender'],
@@ -175,17 +181,18 @@ class MessageManager:
         } for msg in chat_history]
     
     def delete_message(self, message_id, username):
+        self._ensure_initialized()
         try:
-            message = self.messages.find_one({'_id': message_id})
+            message = self.db_config.messages.find_one({'_id': message_id})
             if message:
                 if message['sender'] == username:
-                    self.messages.update_one(
+                    self.db_config.messages.update_one(
                         {'_id': message_id},
                         {'$set': {'deleted': True, 'message': "Message deleted"}}
                     )
                     return True
                 else:
-                    print(f"Username mismatch. Message sender: {message['sender']}, Deleter: {username}")  # Debug log
+                    print(f"Username mismatch. Message sender: {message['sender']}, Deleter: {username}")
             else:
                 print("Message not found")
         except Exception as e:
@@ -193,14 +200,15 @@ class MessageManager:
         return False
     
     def add_reaction(self, message_id, emoji, username):
-        message = self.messages.find_one({'_id': message_id})
+        self._ensure_initialized()
+        message = self.db_config.messages.find_one({'_id': message_id})
         if message:
             reactions = message.get('reactions', {})
             if emoji not in reactions:
                 reactions[emoji] = []
             if username not in reactions[emoji]:
                 reactions[emoji].append(username)
-                self.messages.update_one(
+                self.db_config.messages.update_one(
                     {'_id': message_id},
                     {'$set': {'reactions': reactions}}
                 )
@@ -208,22 +216,23 @@ class MessageManager:
         return None
 
     def get_reaction_counts(self, message_id):
-        message = self.messages.find_one({'_id': message_id})
+        self._ensure_initialized()
+        message = self.db_config.messages.find_one({'_id': message_id})
         if message and 'reactions' in message:
             return {emoji: len(users) for emoji, users in message['reactions'].items()}
         return {}
     
     def edit_message(self, message_id, new_message, username):
-        message = self.messages.find_one({'_id': message_id})
+        self._ensure_initialized()
+        message = self.db_config.messages.find_one({'_id': message_id})
         if message and message['sender'] == username:
-            self.messages.update_one(
+            self.db_config.messages.update_one(
                 {'_id': message_id},
                 {'$set': {'message': new_message}}
             )
             return True
         return False
-    
-# Main Application
+
 class ChatApp:
     def __init__(self):
         self.config = AppConfig()
@@ -235,6 +244,9 @@ class ChatApp:
         self.setup_socketio()
         self.online_users = set()
         self.group_chats = {}
+    
+    def run(self):
+        self.config.socketio.run(self.config.app, debug=True)
 
     def setup_routes(self):
         @self.config.app.route('/')
@@ -300,26 +312,46 @@ class ChatApp:
                 return redirect('/login')
             
             username = session['username']
-            user = self.db.users.find_one({'username': username})
+            self.db_config.initialize()
+            user = self.db_config.users.find_one({'username': username})
             
             if request.method == 'POST':
                 about_me = request.form.get('about_me')
                 
-                # Handle profile photo upload
                 if 'profile_photo' in request.files:
                     photo = request.files['profile_photo']
                     if photo and allowed_file(photo.filename):
                         filename = secure_filename(f"{username}_profile.{photo.filename.rsplit('.', 1)[1].lower()}")
                         photo.save(os.path.join(self.config.app.config['UPLOAD_FOLDER'], filename))
-                        self.db.users.update_one({'username': username}, {'$set': {'profile_photo': filename}})
+                        self.db_config.users.update_one({'username': username}, {'$set': {'profile_photo': filename}})
                 
-                # Update about me
-                self.db.users.update_one({'username': username}, {'$set': {'about_me': about_me}})
+                self.db_config.users.update_one({'username': username}, {'$set': {'about_me': about_me}})
                 
                 return redirect('/profile')
             
             return render_template('profile.html', user=user)
         
+        @self.config.app.route('/upload', methods=['POST'])
+        def upload_file():
+            if 'file' not in request.files:
+                return jsonify({'error': 'No file part'}), 400
+            file = request.files['file']
+            if file.filename == '':
+                return jsonify({'error': 'No selected file'}), 400
+            if file and allowed_file(file.filename):
+                filename = secure_filename(file.filename)
+                file.save(os.path.join(self.config.app.config['UPLOAD_FOLDER'], filename))
+                return jsonify({'filename': filename})
+            return jsonify({'error': 'File type not allowed'}), 400
+
+        @self.config.app.route('/get_group_chat_history/<room_id>')
+        def get_group_chat_history(room_id):
+            if 'username' not in session:
+                return jsonify([])
+            chat_history = self.message_manager.get_chat_history(room_id)
+            return jsonify(chat_history)
+
+    def setup_socketio(self):
         @self.config.socketio.on('search_user')
         def handle_search_user(data):
             username = data['username']
@@ -334,53 +366,6 @@ class ChatApp:
             else:
                 emit('user_search_result', {'found': False})
 
-        @self.config.socketio.on('decline_friend_request')
-        def handle_decline_friend_request(data):
-            recipient = session['username']
-            sender = data['sender']
-            
-            self.friend_request_manager.decline_request(sender, recipient)
-            
-            emit('friend_request_declined', {'sender': sender})
-            emit('friend_request_declined', {'recipient': recipient}, room=sender)
-        
-        @self.config.app.route('/upload', methods=['POST'])
-        def upload_file():
-            if 'file' not in request.files:
-                return jsonify({'error': 'No file part'}), 400
-            file = request.files['file']
-            if file.filename == '':
-                return jsonify({'error': 'No selected file'}), 400
-            if file and allowed_file(file.filename):
-                filename = secure_filename(file.filename)
-                file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-                return jsonify({'filename': filename})
-            return jsonify({'error': 'File type not allowed'}), 400
-
-        def allowed_file(filename):
-            ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'}
-            return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-        
-        @self.config.socketio.on('edit_message')
-        def handle_edit_message(data):
-            message_id = data['message_id']
-            new_message = data['new_message']
-            room = data['room']
-            username = session['username']
-            
-            if self.message_manager.edit_message(message_id, new_message, username):
-                emit('message_edited', {'message_id': message_id, 'new_message': new_message}, room=room)
-            else:
-                emit('edit_error', {'error': 'You can only edit your own messages'})
-
-        @self.config.app.route('/get_group_chat_history/<room_id>')
-        def get_group_chat_history(room_id):
-            if 'username' not in session:
-                return jsonify([])
-            chat_history = self.message_manager.get_chat_history(room_id)
-            return jsonify(chat_history)
-
-    def setup_socketio(self):
         @self.config.socketio.on('send_friend_request')
         def handle_friend_request(data):
             sender = session['username']
@@ -390,7 +375,8 @@ class ChatApp:
                 emit('friend_request_response', {'success': False, 'error': 'Cannot send friend request to yourself'})
                 return
             
-            if not self.db.users.find_one({'username': recipient}):
+            self.db_config.initialize()
+            if not self.db_config.users.find_one({'username': recipient}):
                 emit('friend_request_response', {'success': False, 'error': 'User not found'})
                 return
             
@@ -410,12 +396,16 @@ class ChatApp:
             emit('friend_request_accepted', {'friend': sender})
             emit('friend_request_accepted', {'friend': recipient}, room=sender)
 
-        @self.config.app.route('/friends')
-        def friends():
-            if 'username' not in session:
-                return redirect('/')
-            return render_template('friends.html', username=session['username'])
-        
+        @self.config.socketio.on('decline_friend_request')
+        def handle_decline_friend_request(data):
+            recipient = session['username']
+            sender = data['sender']
+            
+            self.friend_request_manager.decline_request(sender, recipient)
+            
+            emit('friend_request_declined', {'sender': sender})
+            emit('friend_request_declined', {'recipient': recipient}, room=sender)
+
         @self.config.socketio.on('join_rooms')
         def on_join_rooms():
             username = session['username']
@@ -514,7 +504,18 @@ class ChatApp:
             if reaction_counts:
                 emit('reaction_updated', {'message_id': message_id, 'reactions': reaction_counts}, room=room)
 
-        
+        @self.config.socketio.on('edit_message')
+        def handle_edit_message(data):
+            message_id = data['message_id']
+            new_message = data['new_message']
+            room = data['room']
+            username = session['username']
+            
+            if self.message_manager.edit_message(message_id, new_message, username):
+                emit('message_edited', {'message_id': message_id, 'new_message': new_message}, room=room)
+            else:
+                emit('edit_error', {'error': 'You can only edit your own messages'})
+
         @self.config.socketio.on('connect')
         def handle_connect():
             username = session.get('username')
@@ -543,12 +544,9 @@ class ChatApp:
             status = 'online' if username in self.online_users else 'offline'
             emit('user_status', {'username': username, 'status': status})
 
-    def run(self):
-        self.config.socketio.run(self.config.app, debug=True)
-        
+
 chat_app = ChatApp()
 app = chat_app.config.app
 
 if __name__ == '__main__':
-    print("hello e")
     chat_app.run()

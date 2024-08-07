@@ -550,4 +550,5 @@ chat_app = ChatApp()
 app = chat_app.config.app
 
 if __name__ == '__main__':
+    print("hello e")
     chat_app.run()

@@ -9,7 +9,20 @@ from bson import ObjectId
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
 uri = "mongodb+srv://MrBlankCoding:MrBlankCoding@chatapp.on6bu.mongodb.net/?retryWrites=true&w=majority&appName=chatApp"
+import logging
 
+logging.basicConfig(level=logging.DEBUG)
+
+try:
+    client = MongoClient(uri, server_api=ServerApi('1'))
+    db = client.chat_app
+    # Test the connection
+    db.command('ping')
+    print("Successfully connected to MongoDB")
+    
+except Exception as e:
+    print(f"An error occurred: {e}")
+    logging.exception("Detailed error information:")
 # Database Configuration
 class DatabaseConfig:
     def __init__(self):

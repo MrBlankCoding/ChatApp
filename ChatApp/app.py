@@ -40,22 +40,27 @@ class AppConfig:
 
 # User Management
 class UserManager:
-    def __init__(self, db):
-        self.users = db.users
-        self.friends = db.friends
+    def __init__(self, db_config):
+        self.db_config = db_config
+
+    def _ensure_initialized(self):
+        self.db_config.initialize()
 
     def register_user(self, username, password):
-        if self.users.find_one({'username': username}):
+        self._ensure_initialized()
+        if self.db_config.users.find_one({'username': username}):
             return False
-        self.users.insert_one({'username': username, 'password': password})
+        self.db_config.users.insert_one({'username': username, 'password': password})
         return True
 
     def login_user(self, username, password):
-        user = self.users.find_one({'username': username, 'password': password})
+        self._ensure_initialized()
+        user = self.db_config.users.find_one({'username': username, 'password': password})
         return user is not None
 
     def get_friends(self, username):
-        user_friends = self.friends.find_one({'username': username})
+        self._ensure_initialized()
+        user_friends = self.db_config.friends.find_one({'username': username})
         if user_friends and 'friends' in user_friends:
             return user_friends['friends']
         return []
@@ -222,10 +227,10 @@ class MessageManager:
 class ChatApp:
     def __init__(self):
         self.config = AppConfig()
-        self.db = DatabaseConfig()
-        self.user_manager = UserManager(self.db)
-        self.friend_request_manager = FriendRequestManager(self.db)
-        self.message_manager = MessageManager(self.db)
+        self.db_config = DatabaseConfig()
+        self.user_manager = UserManager(self.db_config)
+        self.friend_request_manager = FriendRequestManager(self.db_config)
+        self.message_manager = MessageManager(self.db_config)
         self.setup_routes()
         self.setup_socketio()
         self.online_users = set()

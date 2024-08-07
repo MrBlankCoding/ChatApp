@@ -343,6 +343,11 @@ class ChatApp:
                 file.save(os.path.join(self.config.app.config['UPLOAD_FOLDER'], filename))
                 return jsonify({'filename': filename})
             return jsonify({'error': 'File type not allowed'}), 400
+        
+        
+        def allowed_file(filename):
+            ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'}
+            return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
         @self.config.app.route('/get_group_chat_history/<room_id>')
         def get_group_chat_history(room_id):
@@ -365,6 +370,12 @@ class ChatApp:
                 })
             else:
                 emit('user_search_result', {'found': False})
+
+        @self.config.app.route('/friends')
+        def friends():
+            if 'username' not in session:
+                return redirect('/')
+            return render_template('friends.html', username=session['username'])
 
         @self.config.socketio.on('send_friend_request')
         def handle_friend_request(data):

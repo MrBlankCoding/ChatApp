@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, session, jsonify, url_for
+from flask import Flask, render_template, request, redirect, session, jsonify, url_for, Response
 from flask_socketio import SocketIO, join_room, leave_room, emit
 from pymongo import MongoClient
 from pymongo.server_api import ServerApi
@@ -6,6 +6,7 @@ import secrets
 import os
 from werkzeug.utils import secure_filename
 from bson import ObjectId
+import logging
 
 uri = "mongodb+srv://MrBlankCoding:MrBlankCoding@chatapp.on6bu.mongodb.net/?retryWrites=true&w=majority&appName=chatApp"
 
@@ -252,6 +253,17 @@ class ChatApp:
         @self.config.app.route('/')
         def index():
             return render_template('index.html')
+
+        @self.config.app.route('/download_logs')
+        def download_logs():
+            try:
+                with open('app.log', 'r') as file:
+                    content = file.read()
+                return Response(content, mimetype='text/plain', headers={'Content-Disposition': 'attachment;filename=app.log'})
+            except Exception as e:
+                logging.error(f"Error reading log file: {e}")
+                return "Failed to download log file."
+
 
         @self.config.app.route('/register', methods=['GET', 'POST'])
         def register():

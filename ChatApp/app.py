@@ -378,12 +378,13 @@ class ChatApp:
             if username:
                 user = self.db_config.users.find_one({'username': username})
                 if user:
+                    profile_photo = user.get('profile_photo', 'default_profile.png')
                     return jsonify({
                         'username': user['username'],
                         'about_me': user.get('about_me', ''),
-                        'profile_photo': user.get('profile_photo', '')
+                        'profile_photo': profile_photo
                     })
-            return jsonify({}), 404
+            return jsonify({'profile_photo': 'default_profile.png'}), 404
 
         @self.config.app.route('/friends')
         def friends():

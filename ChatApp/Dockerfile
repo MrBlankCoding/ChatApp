@@ -18,3 +18,8 @@ EXPOSE 5000
 
 # Define the command to run the app
 CMD ["python", "app.py"]
+
+#docker build -t chat-app .
+#docker run -p 5000:5000 chat-app
+#docker tag chat-app mrblankcoding/chat-app:the-chat-app1
+#docker push mrblankcoding/chat-app:the-chat-app1

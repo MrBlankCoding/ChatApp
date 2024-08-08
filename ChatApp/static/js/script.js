@@ -226,6 +226,27 @@ function loadGroupChatHistory(roomId) {
         });
 }
 
+function getUserProfilePhotoURL(username) {
+    return fetch(`/get_user_profile?username=${username}`)
+        .then(response => {
+            if (response.ok) {
+                return response.json();
+            } else {
+                console.error(`Error fetching user profile photo for ${username}: ${response.status} - ${response.statusText}`);
+                return { profile_photo: '' };
+            }
+        })
+        .then(profile => {
+            return profile.profile_photo
+                ? `/static/uploads/${profile.profile_photo}`
+                : '/static/default_profile.png';
+        })
+        .catch(error => {
+            console.error('Error fetching user profile photo:', error);
+            return '/static/default_profile.png';
+        });
+}
+
 function setupGroupChatButton() {
     const createBtn = document.getElementById('create-group-chat-btn');
     const modal = document.getElementById('group-chat-modal');
@@ -287,13 +308,21 @@ function sendMessage(imageFilename = null) {
 }
 
 // Modify the appendMessage function to display images
-function appendMessage(messageId, sender, message, replyTo = null, imageFilename = null, deleted = false) {
+async function appendMessage(messageId, sender, message, replyTo = null, imageFilename = null, deleted = false) {
     const chatMessages = document.getElementById('chat-messages');
     const messageElement = document.createElement('div');
     messageElement.className = 'message';
     messageElement.dataset.id = messageId;
 
-    let messageContent = `<strong>${sender}:</strong> <span class="message-content">${deleted ? "Message deleted" : message}</span>`;
+    const senderProfilePhotoURL = await getUserProfilePhotoURL(sender);
+
+    let messageContent = `
+        <div class="message-header">
+            <img src="${senderProfilePhotoURL}" alt="${sender}'s profile photo" class="profile-photo">
+            <strong>${sender}:</strong>
+        </div>
+        <span class="message-content">${deleted ? "Message deleted" : message}</span>
+    `;
 
     if (replyTo) {
         const replyMessage = chatRooms[currentRoom].messages.find(m => m.id === replyTo);

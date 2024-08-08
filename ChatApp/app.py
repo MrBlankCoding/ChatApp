@@ -73,17 +73,6 @@ class UserManager:
         if update_data:
             self.db_config.users.update_one({'username': username}, {'$set': update_data})
 
-    def get_user_profile(self, username):
-        self._ensure_initialized()
-        user = self.db_config.users.find_one({'username': username})
-        if user:
-            return {
-                'username': user['username'],
-                'about_me': user.get('about_me', ''),
-                'profile_photo': user.get('profile_photo', '')
-            }
-        return None
-
 class FriendRequestManager:
     def __init__(self, db_config):
         self.db_config = db_config
@@ -382,6 +371,19 @@ class ChatApp:
                 })
             else:
                 emit('user_search_result', {'found': False})
+
+        @self.config.app.route('/get_user_profile', methods=['GET'])
+        def get_user_profile():
+            username = request.args.get('username')
+            if username:
+                user = self.db_config.users.find_one({'username': username})
+                if user:
+                    return jsonify({
+                        'username': user['username'],
+                        'about_me': user.get('about_me', ''),
+                        'profile_photo': user.get('profile_photo', '')
+                    })
+            return jsonify({}), 404
 
         @self.config.app.route('/friends')
         def friends():
